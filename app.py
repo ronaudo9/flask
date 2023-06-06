@@ -143,8 +143,6 @@ class Admin(db.Model):
     name = db.Column(db.String)
     createdAt = db.Column(db.DateTime, default=datetime.now)
 
-db.create_all()
-
 
 #ユーザーの登録
 @app.route('/api/register',methods=['POST'])
@@ -228,10 +226,36 @@ def get_user(userId):
         response = {'message': 'User not found.'}
         return jsonify(response), 404
 
-# app.register_blueprint(api_bp, url_prefix='/api')
+#管理者の登録
+@app.route('/api/admin/register', methods=['POST'])
+def create_admin():
+    data = request.get_json()
+    email = data.get('email')
+    password = data.get('password')
+    name = data.get('name')
 
+    admin = Admin(email=email, password=password, name=name)
+    db.session.add(admin)
+    db.session.commit()
 
+    return jsonify({'message': 'Admin created successfully'}), 201
 
+#管理者のログイン
+@app.route('/api/admin/login', methods=['GET'])
+def login_admin():
+    data = request.get_json()
+    email = data.get('email')
+    password = data.get('password')
 
-# if __name__ == '__main__':
-#     app.run(port=8003)
+    admin = Admin.query.filter_by(email=email).first()
+
+    if admin and admin.password == password:
+        admin_info = {
+            'adminId': admin.adminId,
+            'email': admin.email,
+            'name': admin.name,
+            'createdAt': admin.createdAt
+        }
+        return jsonify(admin_info), 200
+    else:
+        return jsonify({'message': 'Invalid email or password'}), 401
