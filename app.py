@@ -259,3 +259,130 @@ def login_admin():
         return jsonify(admin_info), 200
     else:
         return jsonify({'message': 'Invalid email or password'}), 401
+
+#エンジニアがスペックシートの提出申請を出したとき
+@app.route('/api/request/post', methods=['POST'])
+def create_request():
+    data = request.json
+    userId = data.get('userId')
+    engineerComment = data.get('engineerComment')
+
+    new_request = Request(
+        userId=userId,
+        status=1,
+        engineerComment=engineerComment,
+    )
+
+    db.session.add(new_request)
+    db.session.commit()
+
+    return jsonify({'message': 'Request created successfully'}), 201
+
+#管理者が提出申請を受け取るとき
+@app.route("/api/accept", methods=['GET'])
+def accept_requests():
+    try:
+        # statusが1のものを複数取得する
+        requested_applications = Request.query.filter_by(status=1).all()
+
+        requests = []
+        for application in requested_applications:
+            request_data = {
+                'applicationId': application.applicationId,
+                'userId': application.userId,
+                'status': application.status,
+                'adminComment': application.adminComment,
+                'engineerComment': application.engineerComment,
+                'adminId': application.adminId,
+                'createdAt': application.createdAt.isoformat(),
+                'resultedAt': application.resultedAt.isoformat() if application.resultedAt else None
+            }
+            requests.append(request_data)
+
+        return jsonify(requests)
+    except Exception as err:
+        return jsonify(error=str(err)), 500
+
+#管理者による承認
+@app.route('/api/request/approval/<int:applicationId>', methods=['PUT'])
+def update_request(applicationId):
+    adminId = request.json.get('adminId')
+
+    req = Request.query.get(applicationId)
+    if req is None:
+        return jsonify({'error': 'Request not found'}), 404
+
+    req.status = 3
+    req.adminId = adminId
+    req.resultedAt = datetime.now()
+
+    db.session.commit()
+
+    # 辞書に変換してからレスポンスとして返す
+    response_data = {
+        'applicationId': req.applicationId,
+        'userId': req.userId,
+        'status': req.status,
+        'adminComment': req.adminComment,
+        'engineerComment': req.engineerComment,
+        'adminId': req.adminId,
+        'createdAt': req.createdAt,
+        'resultedAt': req.resultedAt,
+    }
+
+    return jsonify(response_data)
+
+#管理者による否認
+@app.route('/api/request/denial/<int:applicationId>', methods=['PUT'])
+def denial_request(applicationId):
+    adminId = request.json.get('adminId')
+    adminComment = request.json.get('adminComment')
+
+    req = Request.query.get(applicationId)
+    if req is None:
+        return jsonify({'error': 'Request not found'}), 404
+
+    req.status = 2
+    req.adminId = adminId
+    req.resultedAt = datetime.now()
+    req.adminComment = adminComment
+
+    db.session.commit()
+
+    # 辞書に変換してからレスポンスとして返す
+    response_data = {
+        'applicationId': req.applicationId,
+        'userId': req.userId,
+        'status': req.status,
+        'adminComment': req.adminComment,
+        'engineerComment': req.engineerComment,
+        'adminId': req.adminId,
+        'createdAt': req.createdAt,
+        'resultedAt': req.resultedAt,
+    }
+
+    return jsonify(response_data)
+
+#エンジニアが承認、否認を受け取る
+@app.route("/api/request/receive/<int:userNumber>", methods=['GET'])
+def get_receive(userNumber):
+    try:
+         requested_applications = Request.query.filter_by(userId=userNumber).filter(Request.status.in_([2, 3])).all()
+
+         requests = []
+         for application in requested_applications:
+            request_data = {
+                'applicationId': application.applicationId,
+                'userId': application.userId,
+                'status': application.status,
+                'adminComment': application.adminComment,
+                'engineerComment': application.engineerComment,
+                'adminId': application.adminId,
+                'createdAt': application.createdAt.isoformat(),
+                'resultedAt': application.resultedAt.isoformat() if application.resultedAt else None
+            }
+            requests.append(request_data)
+
+         return jsonify(requests)
+    except Exception as err:
+        return jsonify(error=str(err)), 500
