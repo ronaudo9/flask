@@ -386,3 +386,179 @@ def get_receive(userNumber):
          return jsonify(requests)
     except Exception as err:
         return jsonify(error=str(err)), 500
+
+#スキルシートを登録する
+@app.route("/api/postSkill/<int:userId>", methods=['POST'])
+def post_skill_data(userId):
+    try:
+        data = request.json
+        InherentName = data["InherentName"]
+        InherentDescription = data["InherentDescription"]
+        FR = data["FR"]
+        BK = data["BK"]
+        DB = data["DB"]
+        SBR = data["SBR"]
+        AR = data["AR"]
+        TS = data["TS"]
+        COM = data["COM"]
+        abilities = data["abilities"]
+
+        skill = Skill(
+            InherentName=InherentName,
+            InherentDescription=InherentDescription,
+            updatedAt=datetime.now(),
+            userId=userId
+        )
+        db.session.add(skill)
+
+        skillPoint = SkillPoint(
+            FR=FR,
+            BK=BK,
+            DB=DB,
+            SBR=SBR,
+            AR=AR,
+            TS=TS,
+            COM=COM,
+            userId=userId
+        )
+        db.session.add(skillPoint)
+
+        specialAbilities = []
+        for ability in abilities:
+            specialAbility = SpecialAbility(
+                skillList=ability["property"],
+                skillSelection=ability["value"],
+                userId=userId
+            )
+            specialAbilities.append(specialAbility)
+
+        db.session.bulk_save_objects(specialAbilities)
+
+        db.session.commit()
+
+        skill_dict = {
+            "skillId": skill.skillId,
+            "userId": skill.userId,
+            "InherentName": skill.InherentName,
+            "InherentDescription": skill.InherentDescription,
+            "updatedAt": skill.updatedAt.isoformat()
+        }
+
+        skillPoint_dict = {
+            "skillPointId": skillPoint.skillPointId,
+            "userId": skillPoint.userId,
+            "FR": skillPoint.FR,
+            "BK": skillPoint.BK,
+            "DB": skillPoint.DB,
+            "SBR": skillPoint.SBR,
+            "AR": skillPoint.AR,
+            "TS": skillPoint.TS,
+            "COM": skillPoint.COM
+        }
+
+        specialAbilities_dicts = []
+        for specialAbility in specialAbilities:
+            specialAbility_dict = {
+                "specialAbilityId": specialAbility.specialAbilityId,
+                "userId": specialAbility.userId,
+                "skillList": specialAbility.skillList,
+                "skillSelection": specialAbility.skillSelection
+            }
+            specialAbilities_dicts.append(specialAbility_dict)
+
+        response = {
+            "skill": skill_dict,
+            "skillPoint": skillPoint_dict,
+            "specialAbilities": specialAbilities_dicts
+        }
+
+        return jsonify(response)
+    except Exception as err:
+        return jsonify(error=str(err)), 500
+
+#スキルシートの情報を更新
+@app.route("/api/putSkill/<int:userId>", methods=['PUT'])
+def put_skill_data(userId):
+    try:
+        data = request.json
+        InherentName = data["InherentName"]
+        InherentDescription = data["InherentDescription"]
+        FR = data["FR"]
+        BK = data["BK"]
+        DB = data["DB"]
+        SBR = data["SBR"]
+        AR = data["AR"]
+        TS = data["TS"]
+        COM = data["COM"]
+        abilities = data["abilities"]
+
+        # Update Skill
+        skill = Skill.query.filter_by(userId=userId).first()
+        skill.InherentName = InherentName
+        skill.InherentDescription = InherentDescription
+        skill.updatedAt = datetime.now()
+
+        # Update SkillPoint
+        skillPoint = SkillPoint.query.filter_by(userId=userId).first()
+        skillPoint.FR = FR
+        skillPoint.BK = BK
+        skillPoint.DB = DB
+        skillPoint.SBR = SBR
+        skillPoint.AR = AR
+        skillPoint.TS = TS
+        skillPoint.COM = COM
+
+        # Delete existing SpecialAbilities
+        SpecialAbility.query.filter_by(userId=userId).delete()
+
+        specialAbilities = []
+        for ability in abilities:
+            specialAbility = SpecialAbility(
+                skillList=ability["property"],
+                skillSelection=ability["value"],
+                userId=userId
+            )
+            specialAbilities.append(specialAbility)
+
+        db.session.add_all(specialAbilities)
+        db.session.commit()
+
+        skill_dict = {
+            "skillId": skill.skillId,
+            "userId": skill.userId,
+            "InherentName": skill.InherentName,
+            "InherentDescription": skill.InherentDescription,
+            "updatedAt": skill.updatedAt.isoformat()
+        }
+
+        skillPoint_dict = {
+            "skillPointId": skillPoint.skillPointId,
+            "userId": skillPoint.userId,
+            "FR": skillPoint.FR,
+            "BK": skillPoint.BK,
+            "DB": skillPoint.DB,
+            "SBR": skillPoint.SBR,
+            "AR": skillPoint.AR,
+            "TS": skillPoint.TS,
+            "COM": skillPoint.COM
+        }
+
+        specialAbilities_dicts = []
+        for specialAbility in specialAbilities:
+            specialAbility_dict = {
+                "specialAbilityId": specialAbility.specialAbilityId,
+                "userId": specialAbility.userId,
+                "skillList": specialAbility.skillList,
+                "skillSelection": specialAbility.skillSelection
+            }
+            specialAbilities_dicts.append(specialAbility_dict)
+
+        response = {
+            "skill": skill_dict,
+            "skillPoint": skillPoint_dict,
+            "specialAbilities": specialAbilities_dicts
+        }
+
+        return jsonify(response)
+    except Exception as err:
+        return jsonify(error=str(err)), 500
